@@ -363,6 +363,162 @@ document.addEventListener("DOMContentLoaded", () => {
     return "academic";
   }
 
+  // Function to handle sharing an activity
+  function handleShare(activityName, description, schedule) {
+    const shareData = {
+      title: `${activityName} - Mergington High School`,
+      text: `Check out this activity at Mergington High School!\n\n${activityName}\n${description}\n\nSchedule: ${schedule}`,
+      url: window.location.href,
+    };
+
+    // Check if Web Share API is supported (primarily mobile devices)
+    if (navigator.share) {
+      navigator
+        .share(shareData)
+        .then(() => {
+          console.log("Shared successfully");
+        })
+        .catch((error) => {
+          console.log("Error sharing:", error);
+        });
+    } else {
+      // Fallback: Show share modal with multiple options
+      showShareModal(activityName, description, schedule);
+    }
+  }
+
+  // Function to show share modal with multiple sharing options
+  function showShareModal(activityName, description, schedule) {
+    // Create share modal if it doesn't exist
+    let shareModal = document.getElementById("share-modal");
+    if (!shareModal) {
+      shareModal = document.createElement("div");
+      shareModal.id = "share-modal";
+      shareModal.className = "modal hidden";
+      shareModal.innerHTML = `
+        <div class="modal-content">
+          <span class="close-share-modal">&times;</span>
+          <h3>Share Activity</h3>
+          <div class="share-options">
+            <button class="share-option-btn twitter-share" id="twitter-share">
+              <span class="share-option-icon">🐦</span>
+              Share on Twitter
+            </button>
+            <button class="share-option-btn facebook-share" id="facebook-share">
+              <span class="share-option-icon">👍</span>
+              Share on Facebook
+            </button>
+            <button class="share-option-btn email-share" id="email-share">
+              <span class="share-option-icon">📧</span>
+              Share via Email
+            </button>
+            <button class="share-option-btn copy-link" id="copy-link">
+              <span class="share-option-icon">📋</span>
+              Copy Link
+            </button>
+          </div>
+          <div id="share-message" class="hidden message"></div>
+        </div>
+      `;
+      document.body.appendChild(shareModal);
+
+      // Add event listener to close button
+      const closeShareModal = shareModal.querySelector(".close-share-modal");
+      closeShareModal.addEventListener("click", () => {
+        shareModal.classList.remove("show");
+        setTimeout(() => {
+          shareModal.classList.add("hidden");
+        }, 300);
+      });
+
+      // Close modal when clicking outside
+      shareModal.addEventListener("click", (event) => {
+        if (event.target === shareModal) {
+          shareModal.classList.remove("show");
+          setTimeout(() => {
+            shareModal.classList.add("hidden");
+          }, 300);
+        }
+      });
+    }
+
+    // Build share text and URL
+    const shareText = `Check out this activity at Mergington High School!\n\n${activityName}\n${description}\n\nSchedule: ${schedule}`;
+    const shareUrl = window.location.href;
+
+    // Setup share buttons
+    const twitterBtn = shareModal.querySelector("#twitter-share");
+    const facebookBtn = shareModal.querySelector("#facebook-share");
+    const emailBtn = shareModal.querySelector("#email-share");
+    const copyLinkBtn = shareModal.querySelector("#copy-link");
+    const shareMessage = shareModal.querySelector("#share-message");
+
+    // Remove old event listeners by cloning
+    const newTwitterBtn = twitterBtn.cloneNode(true);
+    const newFacebookBtn = facebookBtn.cloneNode(true);
+    const newEmailBtn = emailBtn.cloneNode(true);
+    const newCopyLinkBtn = copyLinkBtn.cloneNode(true);
+
+    twitterBtn.parentNode.replaceChild(newTwitterBtn, twitterBtn);
+    facebookBtn.parentNode.replaceChild(newFacebookBtn, facebookBtn);
+    emailBtn.parentNode.replaceChild(newEmailBtn, emailBtn);
+    copyLinkBtn.parentNode.replaceChild(newCopyLinkBtn, copyLinkBtn);
+
+    // Twitter share
+    newTwitterBtn.addEventListener("click", () => {
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+        shareText
+      )}&url=${encodeURIComponent(shareUrl)}`;
+      window.open(twitterUrl, "_blank", "width=600,height=400");
+    });
+
+    // Facebook share
+    newFacebookBtn.addEventListener("click", () => {
+      const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+        shareUrl
+      )}`;
+      window.open(facebookUrl, "_blank", "width=600,height=400");
+    });
+
+    // Email share
+    newEmailBtn.addEventListener("click", () => {
+      const emailSubject = `${activityName} - Mergington High School`;
+      const emailBody = shareText + `\n\nView details: ${shareUrl}`;
+      const mailtoUrl = `mailto:?subject=${encodeURIComponent(
+        emailSubject
+      )}&body=${encodeURIComponent(emailBody)}`;
+      window.location.href = mailtoUrl;
+    });
+
+    // Copy link
+    newCopyLinkBtn.addEventListener("click", () => {
+      navigator.clipboard
+        .writeText(shareUrl)
+        .then(() => {
+          shareMessage.textContent = "Link copied to clipboard!";
+          shareMessage.className = "message success";
+          shareMessage.classList.remove("hidden");
+          setTimeout(() => {
+            shareMessage.classList.add("hidden");
+          }, 3000);
+        })
+        .catch((error) => {
+          shareMessage.textContent = "Failed to copy link";
+          shareMessage.className = "message error";
+          shareMessage.classList.remove("hidden");
+          setTimeout(() => {
+            shareMessage.classList.add("hidden");
+          }, 3000);
+        });
+    });
+
+    // Show the modal
+    shareModal.classList.remove("hidden");
+    setTimeout(() => {
+      shareModal.classList.add("show");
+    }, 10);
+  }
+
   // Function to fetch activities from API with optional day and time filters
   async function fetchActivities() {
     // Show loading skeletons first
@@ -568,6 +724,13 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `
         }
+        <button class="share-button" data-activity="${name}" data-description="${details.description.replace(
+      /"/g,
+      "&quot;"
+    )}" data-schedule="${formattedSchedule.replace(/"/g, "&quot;")}">
+          <span class="share-icon">🔗</span>
+          Share
+        </button>
       </div>
     `;
 
@@ -586,6 +749,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handler for share button
+    const shareButton = activityCard.querySelector(".share-button");
+    shareButton.addEventListener("click", () => {
+      handleShare(name, details.description, formattedSchedule);
+    });
 
     activitiesList.appendChild(activityCard);
   }
